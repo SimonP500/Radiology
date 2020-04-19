@@ -383,20 +383,20 @@ def init():  # Initialisation function
     # TO DO STUDENT    # Calculate average arrival time to the system
 
 
-def arrival_event(ws):
-    # update queue at ws
-    # update time to arrival time
-    # update nr of arrivals and nr of customers
-    # store arrival time of customer
-    # generate interarrival time of next arrival
-    # calculate arrival time of next arrival
-    # update interarrival time statistics
-    # if arrival to empty system
-    # -> generate service time
-    # -> store service time
-    # -> update time of dep
-    # -> update total service time
-
+def arrival_event(ws, C, t_a, job_type):
+    n_ws[ws] += 1 # update statistics: total number of customers in system
+    if n_ws[ws] >= nr_servers[ws]: # if all servers ws are busy
+        tot_n_queue_ws[K][ws] += 1 # update queue at particular ws
+    t = t_a # advance simulation time to arrival time
+    n_a_ws[ws] += 1 # increment nr arrivals at ws
+    time_arrival_ws[K][ws][C] = t_a # store arrival time of customer
+    # compute average nr of customers in system so far
+    # generate interarrival time for next customer
+    if n_ws[ws] < nr_servers[ws]: # if there is a server available
+        t_mu = Normal_distribution(mu[ws][job_type], var[ws][job_type]) # generate service time
+        time_service[K][ws][C] # store service time
+        time_departure_ws[K][ws][C] = t + t_mu # compute departure time and store
+        tot_mu += t_mu # update statistics total service time
 
 
 def departure_event():
