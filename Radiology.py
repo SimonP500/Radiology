@@ -352,9 +352,11 @@ def init():  # Initialisation function
 
     ### DETERMINE FIRST ARRIVAL AND FIRST DEPARTURE ###
     # TO DO STUDENT    # Put all departure times for all customers to +infty
-    for i1 in range(0, K):
-        for i2 in range(0, max_C):
-            time_departure[i1][i2] = infinity
+    global infinity
+    infinity = math.inf
+    for i1 in range(0, nr_stations):
+        for i2 in range(0, nr_servers):
+            t_d[i1][i2] = infinity
 
     # TO DO STUDENT    # Generate first arrival for all sources
     first_job1 = first_job2 = 0 # initialize index to determine job type
@@ -383,26 +385,52 @@ def init():  # Initialisation function
     # TO DO STUDENT    # Calculate average arrival time to the system
 
 
-def arrival_event(ws, C, t_a, job_type):
-    n_ws[ws] += 1 # update statistics: total number of customers in system
-    if n_ws[ws] >= nr_servers[ws]: # if all servers ws are busy
-        tot_n_queue_ws[K][ws] += 1 # update queue at particular ws
-    t = t_a # advance simulation time to arrival time
-    n_a_ws[ws] += 1 # increment nr arrivals at ws
-    time_arrival_ws[K][ws][C] = t_a # store arrival time of customer
-    # compute average nr of customers in system so far
-    # generate interarrival time for next customer
-    if n_ws[ws] < nr_servers[ws]: # if there is a server available
-        t_mu = Normal_distribution(mu[ws][job_type], var[ws][job_type]) # generate service time
-        time_service[K][ws][C] # store service time
-        time_departure_ws[K][ws][C] = t + t_mu # compute departure time and store
-        tot_mu += t_mu # update statistics total service time
+def arrival_event(current_ws, job_type, c, t_arrival):
+    global t
+    global t_mu
+    # TO DO: if current ws is the first station for this scan type, generate next arrival into system
+    n_ws[current_ws] += 1 # update statistics: total number of scans at ws
+    if n_ws[current_ws] > nr_servers[current_ws]: # if all servers ws are busy
+        tot_n_queue_ws[K][current_ws] += 1 # UPDATE STAT: total number of customers in queue particular ws over time
+        tot_n_queue[K] += 1
+    t = t_arrival # advance simulation time to arrival time
+    time_arrival_ws[K][current_ws][c] = t_arrival # store arrival time of customer
+    ### TO DO: only when first arrival in system ###
+    tot_n[K] += 1 # increment total number of customers in whole system over time
+    tot_n_ws[K][current_ws] += 1 # increment total number of customers per ws over time
+    n_a_ws[current_ws] += 1 # increment nr arrivals at ws
+    if n_ws[current_ws] <= nr_servers[current_ws]: # if there is a server available
+        # TO DO: assign to specific server
+        # TO DO: calc waiting time for scan at particular ws per run
+        current_cust[current_ws][current_server] # store at which server and ws customer is currently being handled
+        t_mu = Normal_distribution(mu[current_ws][job_type], var[current_ws][job_type]) # generate service time
+        time_service[K][current_ws][c] = t_mu # store service time
+        t_departure = t + t_mu # store departure time
+        t_d[current_ws][current_server] = t_departure # generate departure time TO DO: DETERMINE SERVER
+        tot_mu[K] += t_mu # UPDATE STAT: total service time
 
+# method to get next station in route for scan based on job type and current ws
+def get_next_ws(current_ws, job_type):
+    index_route = (list(route[job_type].values()).index(current_ws))
+    return route[job_type][index_route + 1]
 
-def departure_event():
+def departure_event(current_ws, c, job_type, t_departure):
+    global t_mu
+    global t
+    n_ws[current_ws] -= 1 # update nr of scans at ws
+    next_ws =  get_next_ws(current_ws, job_type) # identify next destination for scan
+    t = t_departure # advance time to departure time
+    time_departure_ws[K][current_ws][c] = t# store departure time of customer
+    if n_ws[current_ws] == 0: # if there are no more scans waiting at ws
+        t_d[current_ws][server] = infinity # set time of next departure to +inf
+    else:
+        t_mu = Normal_distribution(mu[current_ws][job_type], var[current_ws][job_type]) # generate new service time
+        time_service[K][current_ws][c] = t_mu # store service time
+        t_d[current_ws][server] = t + t_mu # set new departure time for particular server at particular ws
+        tot_mu[K] += t_mu # update total service time
+        current_ws[c] = next_ws # send scan to next ws and update arrival time at ws
+        time_arrival_ws[K][next_ws][c] = t + t_mu # store time of arrival of scan to next ws
 
-
-# TO DO STUDENT        # DEFINE DEPARTURE EVENT
 
 def radiology_system():
 
