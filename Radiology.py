@@ -27,24 +27,24 @@ def Normal_distribution(mean, stdev):
 def initialize_functions():  # Put all variables to zero
 
     ### INPUT DATA RELATED TO SYSTEM JOBS ###
-    global max_C = 20000
+    max_C = 20000
     for i1 in range(0, max_C):
         current_station[i1] = 0
 
     ### VARIABLES RELATED TO system SCANS ###
     for i1 in range(0, nr_stations):
-        n_ws[i1] = 0 # nr of scans at a particular ws
+        n_ws[i1] = 0  # nr of scans at a particular ws
 
     for i2 in range(0, K):
         mean_customers_system[i2] = 0
-        tot_n[i2] = 0 # nr of scans in the system over time
+        tot_n[i2] = 0  # nr of scans in the system over time
         for i1 in range(0, nr_stations):
-            tot_n_ws[i2][i1] = 0 # nr of scans in a ws over time
+            tot_n_ws[i2][i1] = 0  # nr of scans in a ws over time
 
     ### PARAMETERS RELATED TO ARRIVAL OF SCANS ###
-    max_AS = 5 # jobs can come from 5 different sources
+    max_AS = 5  # jobs can come from 5 different sources
     for i1 in range(0, nr_stations):
-        n_a_ws[i1] = 0 # number of arrivals in a particular ws
+        n_a_ws[i1] = 0  # number of arrivals in a particular ws
 
     for i2 in range(0, K):
         mean_interarrival_time[i2] = 0
@@ -52,29 +52,30 @@ def initialize_functions():  # Put all variables to zero
             tot_lambda[i2][i6] = 0
 
         for i3 in range(0, max_C):
-            time_arrival[i2][i3] = 0 # time of arrival of the scan to the ancillary services
+            time_arrival[i2][i3] = 0  # time of arrival of the scan to the ancillary services
             for i1 in range(0, nr_stations):
-                time_arrival_ws[i2][i1][i3] = 0 # time of arrival of a particular scan to a particular workstation
-            scan_type[i3] = 0 # type of scan arriving
+                time_arrival_ws[i2][i1][i3] = 0  # time of arrival of a particular scan to a particular workstation
+            scan_type[i3] = 0  # type of scan arriving
 
     for i6 in range(0, max_AS):
-        t_a[i6] = 0 # time of next arrival for each source
+        t_a[i6] = 0  # time of next arrival for each source
 
     ### PARAMETERS RELATED TO Processing OF SCANS ###
     for i1 in range(0, nr_stations):
-        n_d_ws[i1] = 0 # number of scans handled in a particular workstation
+        n_d_ws[i1] = 0  # number of scans handled in a particular workstation
         for i6 in range(0, nr_servers[i1]):
-            t_d[i1][i6] = 0 # time of next departure for each server in each workstation
-            current_cust[i1][i6] = 0 # customer handled by a particular workstation and server
+            t_d[i1][i6] = 0  # time of next departure for each server in each workstation
+            current_cust[i1][i6] = 0  # customer handled by a particular workstation and server
         for i6 in range(0, max_C):
-            list_scan[i1][i6] = -1 # list of customers processed at a particular workstation on a particular point in time
+            list_scan[i1][
+                i6] = -1  # list of customers processed at a particular workstation on a particular point in time
 
     for i2 in range(0, K):
-        mean_service_time[i2] = 0 # calculated average service time
-        tot_mu[i2] = 0; # total service time generated
+        mean_service_time[i2] = 0  # calculated average service time
+        tot_mu[i2] = 0;  # total service time generated
         for i1 in range(0, nr_stations):
             for i3 in range(0, max_C):
-                time_service[i2][i1][i3] = 0 # service time per customer and per ws
+                time_service[i2][i1][i3] = 0  # service time per customer and per ws
 
     ### PARAMETERS RELATED TO waiting OF SCANS ###
     for i2 in range(0, K):
@@ -83,9 +84,9 @@ def initialize_functions():  # Put all variables to zero
         mean_customers_queue[i2] = 0
         tot_n_queue[i2] = 0
         for i1 in range(0, nr_stations):
-            tot_n_queue_ws[i2][i1] = 0 # total nr of scans in queue at ws over time
+            tot_n_queue_ws[i2][i1] = 0  # total nr of scans in queue at ws over time
             for i3 in range(0, max_C):
-                waiting_time_job_ws[i2][i1][i3] = 0 # waiting time for a job on a particular ws
+                waiting_time_job_ws[i2][i1][i3] = 0  # waiting time for a job on a particular ws
 
     ### VARIABLES RELATED TO Processed SCANS ###
     for i2 in range(0, K):
@@ -301,7 +302,7 @@ def init():  # Initialisation function
 
     ### GENERAL DISCRETE EVENT SIMULATION PARAMETERS ###
     global N
-    N = 1000  # Number of scans (Stop criterion)
+    N = 10  # Number of scans (Stop criterion)
     global t  # Simulation time
     t = 1
 
@@ -352,17 +353,16 @@ def init():  # Initialisation function
 
     ### DETERMINE FIRST ARRIVAL AND FIRST DEPARTURE ###
     # TO DO STUDENT    # Put all departure times for all customers to +infty
-    global infinity
     infinity = math.inf
     for i1 in range(0, nr_stations):
         for i2 in range(0, nr_servers[i1]):
             t_d[i1][i2] = infinity
 
     # TO DO STUDENT    # Generate first arrival for all sources
-    t_a[0] = t + Exponential_distribution(lamb[0]) # generate first arrival time from diagnostic department
-    t_a[1] = t + Exponential_distribution(lamb[1]) # generate first arrival other departments
+    t_a[0] = t + Exponential_distribution(lamb[0])  # generate first arrival time from diagnostic department
+    t_a[1] = t + Exponential_distribution(lamb[1])  # generate first arrival other departments
     # TO DO STUDENT    # Get next arrival
-    first_ta = min(t_a[0], t_a[1]) # get first arrival out of the two sources
+    first_ta = min(t_a[0], t_a[1])  # get first arrival out of the two sources
     if first_ta == t_a[0]:
         index_arr = 0
     else:
@@ -375,87 +375,104 @@ def det_job_type(source):
     job_type = -1
     rand = np.random.uniform(0, 1)
     if rand <= cum_distr_scans[source][0]:
-        job_type = 1
+        job_type = 0
     elif cum_distr_scans[source][0] < rand <= cum_distr_scans[source][1]:
-        job_type = 2
+        job_type = 1
     elif cum_distr_scans[source][1] < rand <= cum_distr_scans[source][2]:
-        job_type = 3
+        job_type = 2
     elif cum_distr_scans[source][2] < rand:
-        job_type = 4
+        job_type = 3
     return job_type
 
+
 def arrival_event(time, source):
-    global t
-    n_a += 1 # increment nr of arrivals in system
-    tot_n[K] += (time - t) * n
-    job_type = det_job_type(source) # determine type of job
-    scan_type[n_a] = job_type # store scan type of scan
-    first_ws = route[job_type][0] # send to fist ws after arrival in system
-    current_station[n_a] = first_ws # update current ws
-    tot_n_ws[K][first_ws] += (time - t) * n_ws[first_ws]
-    if n_ws[first_ws] >= nr_servers[first_ws]: # check queue at first ws
-        tot_n_queue[K] += (time - t) * (n - 1) # UPDATE STAT: total nr of scans in queue
-        tot_n_queue_ws[K][first_ws] += (time - t) * (n_ws[first_ws] - 1)# UPDATE STAT: total nr of scans in queue at ws
-    t = time # advance time to simulation time
-    n += 1 # update nr of scans in system currently
-    n_ws[first_ws] += 1 # increment nr of scans at ws currently
-    n_a_ws[first_ws] += 1 # increment nr of arrivals ws
-    if n_a <= N: # stop criterion: if number of arrived customers in system < N
-        time_arrival_ws[K][first_ws][n_a_ws] = t #store arrival time at ws
-        time_arrival[K][n_a] = t # store arrival time of scan in ancillary services
-    mean_customers_system[K] = tot_n[K] / t # compute avg nr of customers in system so far
-    t_lambda = Exponential_distribution(lamb[source]) # generate interarrival time of next customer in system
-    tot_lambda += t_lambda # add to total interarrival time
-    t_a[source] = t + t_lambda # store time of next arrival for source
+    global t, n, n_a, tot_lambda
+    n_a += 1  # increment nr of arrivals in system
+    tot_n[K - 1] += (time - t) * n
+    job_type = det_job_type(source)  # determine type of job
+    scan_type[n_a] = job_type  # store scan type of scan
+    first_ws = route[job_type][0]  # send to fist ws after arrival in system
+    current_station[n_a] = first_ws  # update current ws
+    tot_n_ws[K - 1][first_ws] += (time - t) * n_ws[first_ws]
+    if n_ws[first_ws] >= nr_servers[first_ws]:  # check queue at first ws
+        tot_n_queue[K - 1] += (time - t) * (n - 1)  # UPDATE STAT: total nr of scans in queue
+        tot_n_queue_ws[K - 1][first_ws] += (time - t) * (
+                n_ws[first_ws] - 1)  # UPDATE STAT: total nr of scans in queue at ws
+    t = time  # advance time to simulation time
+    n += 1  # update nr of scans in system currently
+    n_ws[first_ws] += 1  # increment nr of scans at ws currently
+    n_a_ws[first_ws] += 1  # increment nr of arrivals ws
+    if n_a <= N:  # stop criterion: if number of arrived customers in system < N
+        time_arrival_ws[K - 1][first_ws][n_a_ws[first_ws]] = t  # store arrival time at ws
+        time_arrival[K - 1][n_a] = t  # store arrival time of scan in ancillary services
+    #mean_customers_system[K - 1] = tot_n[K - 1] / t  # compute avg nr of customers in system so far
+    t_lamb = Exponential_distribution(lamb[source])  # generate interarrival time of next customer in system
+    tot_lambda[K - 1][source] += t_lamb  # add to total interarrival time
+    t_a[source] = t + t_lamb  # store time of next arrival for source
     if n_ws[first_ws] < nr_servers[first_ws]:
-        t_mu = Normal_distribution(mu[first_ws][job_type], var[first_ws][job_type]) # generate service time
-        tot_mu += t_mu # update total service time
-        time_service[K][first_ws][n_a_ws]# store service time
-        # TO DO: how to assign to specific server
-        t_d[first_ws][server] = t + t_mu # compute departure time
+        t_mu = Normal_distribution(mu[first_ws][job_type], var[first_ws][job_type])  # generate service time
+        tot_mu[K - 1] += t_mu  # update total service time
+        time_service[K - 1][first_ws][n_a_ws[first_ws]]  # store service time
+        # assign to first available server (not idle)
+        available = get_idles(idle[K - 1][first_ws])  # get list of available servers at ws
+        server_chosen = available[0] # assign to first available server
+        idle[K - 1][first_ws][server_chosen] = 1 # put chosen server on busy
+        t_d[first_ws][server_chosen] = t + t_mu  # compute departure time
+
 
 # method to get next station in route for scan based on job type and current ws
 def get_next_ws(current_ws, job_type):
     index_route = (list(route[job_type].values()).index(current_ws))
     return route[job_type][index_route + 1]
 
+
+# method to get list of available servers at a particular ws
+def get_idles(mydict):
+    return [k for k, v in mydict.items() if v == 0]
+
+
 def departure_event(current_ws, time, c, job_type):
     global t
-    tot_n_ws[K][current_ws] += (time - t) * n_ws[current_ws] # update nr of scan in a ws over time
-    n_ws[current_ws] -= 1 # update nr of scans at ws
-    n_d_ws[current_ws] += 1 # update nr of scans handled at particular ws
-    if current_ws == route[job_type][len(nr_workstations_job[job_type]) - 1]: # check if final ws
+    tot_n_ws[K - 1][current_ws] += (time - t) * n_ws[current_ws]  # update nr of scan in a ws over time
+    n_ws[current_ws] -= 1  # update nr of scans at ws
+    n_d_ws[current_ws] += 1  # update nr of scans handled at particular ws
+    if current_ws == route[job_type][nr_workstations_job[job_type] - 1]:  # check if final ws
         n_d += 1
-        time_departure[K][n_d] = time # indicate job is finished TO DO: indexering niet correct
+        time_departure[K - 1][n_d] = time  # indicate job is finished TO DO: indexering niet correct
     else:
         next_ws = get_next_ws(current_ws, job_type)  # identify next ws
-        if n_ws[next_ws] >= nr_servers[next_ws]: # check if queue at next ws
-            tot_n_queue[K] += (time - t) * (n - 1)  # UPDATE STAT: total nr of scans in queue
-            tot_n_queue_ws[K][next_ws] += (time - t) * (n_ws[next_ws] - 1)  # UPDATE STAT: total nr of scans in queue at ws
+        if n_ws[next_ws] >= nr_servers[next_ws]:  # check if queue at next ws
+            tot_n_queue[K - 1] += (time - t) * (n - 1)  # UPDATE STAT: total nr of scans in queue
+            tot_n_queue_ws[K - 1][next_ws] += (time - t) * (
+                    n_ws[next_ws] - 1)  # UPDATE STAT: total nr of scans in queue at ws
         t = time  # advance time to simulation time
         n_ws[next_ws] += 1  # increment nr of scans at ws currently
         n_a_ws[next_ws] += 1  # increment nr of arrivals ws
         if n_a <= N:  # stop criterion: if number of arrived customers in system < N
-            time_arrival_ws[K][next_ws][c] = t  # store arrival time at ws
-        mean_customers_system[K] = tot_n[K] / t  # compute avg nr of customers in system so far
+            time_arrival_ws[K - 1][next_ws][c] = t  # store arrival time at ws
+        #mean_customers_system[K - 1] = tot_n[K - 1] / t  # compute avg nr of customers in system so far
         if n_ws[next_ws] < nr_servers[next_ws]:
             t_mu = Normal_distribution(mu[next_ws][job_type], var[next_ws][job_type])  # generate service time
             tot_mu += t_mu  # update total service time
-            time_service[K][next_ws][c]  # store service time
-            # TO DO: how to assign to specific server
-            t_d[next_ws][server] = t + t_mu  # compute departure time
+            time_service[K - 1][next_ws][c]  # store service time
+            # assign to first available server (not idle)
+            available = get_idles(idle[K - 1][next_ws])  # get list of available servers at ws
+            server_chosen = available[0]  # assign to first available server
+            idle[K - 1][next_ws][server_chosen] = 1  # put chosen server on busy
+            t_d[next_ws][server_chosen] = t + t_mu  # compute departure time
 
 
 def get_ws_server(dict):
     res_dict = {}
-    for k, v in dict.items:
+    for k, v in dict.items():
         for k2, v2 in v.items():
             res_dict[(k, k2)] = v2
 
     minval = min(res_dict.values())
     ws = [k for k, v in res_dict.items() if v == minval][0][0]
-    server = [k for k, v in res_dict.items()] if v == minval[0][1]
+    server = [k for k, v in res_dict.items() if v == minval][0][1]
     return ws, server, minval
+
 
 def lowest_nested_dict(dict):
     res_dict = {}
@@ -468,8 +485,8 @@ def lowest_nested_dict(dict):
 
 def radiology_system():
     arrival_event(first_ta, index_arr)
-    while n_d < N: # perform sim until no scans are left in system
-        ws, server, next_departure  = get_ws_server(t_d)
+    while n_d < N:  # perform sim until no scans are left in system
+        ws, server, next_departure = get_ws_server(t_d)
         next_arrival = min(t_a[0], t_a[1])
         next_source = -1
         if next_arrival == t_a[0]:
@@ -481,9 +498,6 @@ def radiology_system():
             arrival_event(next_event, next_source)
         else:
             departure_event(ws, next_departure, current_cust[ws][server], scan_type[current_cust[ws][server]])
-
-
-
 
 
 # TO DO STUDENT        # Perform simulation until prespecified number of customers have departed (while loop) DONE
