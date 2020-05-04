@@ -527,7 +527,7 @@ def output():
     file1.write('Overall avg utilisation: %lf\n' % rho)
     file1.write('\n\n\n')
 
-    function_objective = mean_system_time[run]/N - 10 * rho
+    function_objective = mean_system_time[run]/N/60 - 10 * rho
 
     file1.write('Objective function of run {}: '.format(function_objective))
 
