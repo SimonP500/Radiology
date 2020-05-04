@@ -525,10 +525,11 @@ def output():
         rho += rho_ws[i1]
     rho /= nr_stations
     file1.write('Overall avg utilisation: %lf\n' % rho)
-    file1.write('\n')
+    file1.write('\n\n\n')
 
-    rho = rho / nr_stations
+    function_objective = mean_system_time[run]/N - 10 * rho
 
+    file1.write('Objective function of run {}: '.format(function_objective))
 
 L = 1
 for i3 in range(0, L):
