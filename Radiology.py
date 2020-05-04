@@ -1,6 +1,3 @@
-# TODO: add variable for avg utilization level (over all ws and servers)
-
-
 import numpy as np
 import math
 from collections import defaultdict
@@ -301,7 +298,7 @@ def init():  # Initialisation function
 
     ### GENERAL DISCRETE EVENT SIMULATION PARAMETERS ###
     global N
-    N = 100  # Number of scans (Stop criterion)
+    N = 1000  # Number of scans (Stop criterion)
     global t  # Simulation time
     t = 1
 
@@ -351,17 +348,15 @@ def init():  # Initialisation function
     ### INITIALISE SYSTEM ###
 
     ### DETERMINE FIRST ARRIVAL AND FIRST DEPARTURE ###
-    # TO DO STUDENT    # Put all departure times for all customers to +infty
+    # Put all departure times for all customers to +infty
     infinity = math.inf
     for i1 in range(0, nr_stations):
         for i2 in range(0, nr_servers[i1]):
             t_d[i1][i2] = infinity
 
-    # TO DO STUDENT    # Generate first arrival for all sources
+    # Generate first arrival for all sources
     t_a[0] = t + Exponential_distribution(lamb[0])  # generate first arrival time from diagnostic department
     t_a[1] = t + Exponential_distribution(lamb[1])  # generate first arrival other departments
-    # TO DO STUDENT    # Get next arrival
-    # TO DO STUDENT    # Calculate average arrival time to the system
 
 
 # method to determine job type of arrival
@@ -379,7 +374,7 @@ def det_job_type(source):
     return job_type
 
 
-# method to get the ws, server and time of first departure
+# method to get the ws, server of first departure
 def get_ws_server(dict, time_departure):
     global index_dep_station, index_dep_server
     for ws, server in dict.items():
@@ -390,7 +385,7 @@ def get_ws_server(dict, time_departure):
     return index_dep_station, index_dep_server
 
 
-# method to get list of available servers at a particular ws
+# method to get first available server at a particular ws
 def get_idles(mydict, current_time):
     idles = [k for k, v in mydict.items() if v <= current_time]
     return idles[0]
@@ -402,8 +397,8 @@ def arrival_event(source):
     job_type = det_job_type(source)  # determine type of job
     scan_type[n_a] = job_type  # store type of scan
     current_station[n_a] = 0  # update current ws (sequence nr)
-    ws = route[job_type][0]  # help variable for current ws (not sequence)
-    if n_a <= 1000:  # stop criterion
+    ws = route[job_type][0]  # help variable for current ws (not sequence nr)
+    if n_a <= N:  # stop criterion
         time_arrival[K - 1][n_a] = t  # store arrival time
     if n_ws[ws] >= nr_servers[ws]:  # there are no servers available
         list_scan[ws].append(n_a)  # put in queue
@@ -430,8 +425,8 @@ def departure_event(cust_ID):
     n_ws[current_ws] -= 1  # update nr of scans at ws
     n_d_ws[current_ws] += 1  # update nr of scans handled at particular ws
     if n_ws[current_ws] >= nr_servers[current_ws]:  # there are people in queue at ws cust is departing from
-        next_customer = list_scan[current_ws].pop(0)
-        job_type_arr = scan_type[next_customer]
+        next_customer = list_scan[current_ws].pop(0)  # treat next scan in queue
+        job_type_arr = scan_type[next_customer]  # get type of that scan
         service_time = Normal_distribution(mu[current_ws][job_type_arr],
                                            var[current_ws][job_type_arr])  # generate service time
         first_available_server = get_idles(idle[K - 1][current_ws],
@@ -444,7 +439,6 @@ def departure_event(cust_ID):
         order_out[cust_ID] = t  # store time cust is out of system
         time_system[K - 1][cust_ID] = order_out[cust_ID] - time_arrival[K - 1][cust_ID]  # store time scan has spent
         # in the system
-        test = 0
     else:
         next_ws = route[job_type_dep][current_station[cust_ID] + 1]  # identify next ws (not sequence nr)
         n_a_ws[next_ws] += 1  # increment nr of arrivals ws
@@ -457,7 +451,7 @@ def departure_event(cust_ID):
                                                var[next_ws][job_type_dep])  # generate service time
             first_available_server = get_idles(idle[K - 1][next_ws],
                                                t)  # assign to first available server (not idle)
-            rho_ws_s[next_ws][first_available_server] += t - idle[K -1][next_ws][first_available_server]  # store
+            rho_ws_s[next_ws][first_available_server] += t - idle[K - 1][next_ws][first_available_server]  # store
             # idle time
             t_d[next_ws][first_available_server] = t + service_time  # store departure time
             idle[K - 1][next_ws][first_available_server] = t + service_time  # update time server will be idle again
@@ -468,7 +462,7 @@ def departure_event(cust_ID):
 def radiology_system():
     global t
     not_departed = [1]
-    while len(not_departed) != 0:  # perform sim until no scans are left in system
+    while len(not_departed) != 0:  # perform sim until first N scans have departed
         first_departure = math.inf  # initialize first departure variable
         for ws, server in t_d.items():  # get time of first next departure
             for time in server.values():
@@ -484,10 +478,6 @@ def radiology_system():
             next_source = 1
         next_event = min(first_arrival, first_departure)
         t = next_event
-        #for i1 in range(0, nr_stations):
-         #   for i2 in range(0, nr_servers[i1]):
-          #      if idle[K - 1][i1][i2] < t:
-           #         rho_ws_s[i1][i2] += t - rho_ws_s[i1][i2]
         if next_event == first_arrival:  # arrival event
             arrival_event(next_source)
         else:  # departure event
@@ -495,7 +485,7 @@ def radiology_system():
         not_departed = []
         for i1 in range(1, N + 1):
             if order_out[i1] == 0:
-                not_departed.append(i1)
+                not_departed.append(i1)  # to check if first N scans have departed
 
 
 def output():
@@ -506,19 +496,34 @@ def output():
     file1.write('Cycle time\n')
     j1 = mean_system_time[run] / N
     file1.write('Avg cycle time: %lf\n\n' % j1)
-    file1.write('Utilization level\n')
+
+    file1.write('Utilization level\n')  # Print stat utilization lvl's
     for i1 in range(0, nr_stations):
+        file1.write('Utilisation servers Station WS %d:\t' % i1)
         for i2 in range(0, nr_servers[i1]):
-            rho_ws[i1] += rho_ws_s[i1][i2] / t
+            file1.write('%lf\t' % (1 - rho_ws_s[i1][i2] / t))
+        file1.write('\n')
+    file1.write('\n')
     for i1 in range(0, nr_stations):
-        rho += rho_ws[i1] / nr_servers[i1]
+        file1.write('Avg utilisation Station WS %d:\t' % i1)
+        for i2 in range(0, nr_servers[i1]):
+            rho_ws[i1] += (1 - rho_ws_s[i1][i2] / t)
+        rho_ws[i1] = rho_ws[i1] / nr_servers[i1]
+        file1.write('%lf\n' % rho_ws[i1])
+    file1.write('\n')
+
+    for i1 in range(0, nr_stations):
+        rho += rho_ws[i1]
     rho /= nr_stations
-    file1.write('Average utilization level: {}'.format(rho))
+    file1.write('Overall avg utilisation: %lf\n' % rho)
+    file1.write('\n')
+
+    rho = rho / nr_stations
 
 
 L = 1
 for i3 in range(0, L):
-    K = 1
+    K = 5
     for run in range(0, K):
         init()
         radiology_system()
