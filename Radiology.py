@@ -113,7 +113,7 @@ def initialize_functions():  # Put all variables to zero
 def init():  # Initialisation function
 
     ### SET INPUT VALUES ###
-    np.random.seed(0)  # ((i3+1)*K-run)
+    np.random.seed(0)  # ((i3+1)*run-run)
     # Ensure you each time use a different seed to get IID replications
 
     ### INPUT RADIOLOGY DPT ###
@@ -388,6 +388,7 @@ def get_ws_server(dict, time_departure):
 # method to get first available server at a particular ws
 def get_idles(mydict, current_time):
     idles = [k for k, v in mydict.items() if v <= current_time]
+    test = 0
     return idles[0]
 
 
@@ -399,18 +400,18 @@ def arrival_event(source):
     current_station[n_a] = 0  # update current ws (sequence nr)
     ws = route[job_type][0]  # help variable for current ws (not sequence nr)
     if n_a <= N:  # stop criterion
-        time_arrival[K - 1][n_a] = t  # store arrival time
+        time_arrival[run][n_a] = t  # store arrival time
     if n_ws[ws] >= nr_servers[ws]:  # there are no servers available
         list_scan[ws].append(n_a)  # put in queue
     n += 1  # update nr of scans in system currently
     n_a_ws[ws] += 1  # increment nr of arrivals ws
     if n_ws[ws] < nr_servers[ws]:  # there are servers available
         service_time = Normal_distribution(mu[ws][job_type], var[ws][job_type])  # generate service time
-        first_available_server = get_idles(idle[K - 1][ws], t)  # assign to first available server (not idle)
+        first_available_server = get_idles(idle[run][ws], t)  # assign to first available server (not idle)
         t_d[ws][first_available_server] = t + service_time  # store departure time of scan at particular station and
         # server
-        rho_ws_s[ws][first_available_server] += t - idle[K - 1][ws][first_available_server]  # store idle time
-        idle[K - 1][ws][first_available_server] = t + service_time  # update time server will be idle again
+        rho_ws_s[ws][first_available_server] += t - idle[run][ws][first_available_server]  # store idle time
+        idle[run][ws][first_available_server] = t + service_time  # update time server will be idle again
         current_cust[ws][first_available_server] = n_a  # update current_cust variable
     n_ws[ws] += 1  # increment nr of scans at ws currently
     # generate next arrival
@@ -429,15 +430,15 @@ def departure_event(cust_ID):
         job_type_arr = scan_type[next_customer]  # get type of that scan
         service_time = Normal_distribution(mu[current_ws][job_type_arr],
                                            var[current_ws][job_type_arr])  # generate service time
-        first_available_server = get_idles(idle[K - 1][current_ws],
+        first_available_server = get_idles(idle[run][current_ws],
                                            t)  # assign to first available server (not idle)
         t_d[current_ws][first_available_server] = t + service_time  # store departure time
-        idle[K - 1][current_ws][first_available_server] = t + service_time  # update time server will be idle again
+        idle[run][current_ws][first_available_server] = t + service_time  # update time server will be idle again
         current_cust[current_ws][first_available_server] = next_customer  # update current_cust variable
     if current_ws == route[scan_type[cust_ID]][nr_workstations_job[job_type_dep] - 1]:  # check if final ws
         n_d += 1  # increment nr of departures out of system
         order_out[cust_ID] = t  # store time cust is out of system
-        time_system[K - 1][cust_ID] = order_out[cust_ID] - time_arrival[K - 1][cust_ID]  # store time scan has spent
+        time_system[run][cust_ID] = order_out[cust_ID] - time_arrival[run][cust_ID]  # store time scan has spent
         # in the system
     else:
         next_ws = route[job_type_dep][current_station[cust_ID] + 1]  # identify next ws (not sequence nr)
@@ -449,12 +450,12 @@ def departure_event(cust_ID):
         if n_ws[next_ws] < nr_servers[next_ws]:  # servers available
             service_time = Normal_distribution(mu[next_ws][job_type_dep],
                                                var[next_ws][job_type_dep])  # generate service time
-            first_available_server = get_idles(idle[K - 1][next_ws],
+            first_available_server = get_idles(idle[run][next_ws],
                                                t)  # assign to first available server (not idle)
-            rho_ws_s[next_ws][first_available_server] += t - idle[K - 1][next_ws][first_available_server]  # store
+            rho_ws_s[next_ws][first_available_server] += t - idle[run][next_ws][first_available_server]  # store
             # idle time
             t_d[next_ws][first_available_server] = t + service_time  # store departure time
-            idle[K - 1][next_ws][first_available_server] = t + service_time  # update time server will be idle again
+            idle[run][next_ws][first_available_server] = t + service_time  # update time server will be idle again
             current_cust[next_ws][first_available_server] = cust_ID  # update current_cust variable
         n_ws[next_ws] += 1  # increment nr of scans at ws currently
 
@@ -489,15 +490,23 @@ def radiology_system():
 
 
 def output():
-    global rho_ws, rho, t
-    file1 = open("Output_Radiology.txt", "w")
+    global rho_ws, rho, t, mean_system_time
+    file1 = open("Output_Radiology_run{}.txt".format(run), "w")
     for i1 in range(1, N + 1):  # PRINT system time = cycle time (observations and running average)
         mean_system_time[run] += time_system[run][i1]
-    file1.write('Cycle time\n')
+    file1.write('Cycle time run {}:\n\n'.format(run))
     j1 = mean_system_time[run] / N
-    file1.write('Avg cycle time: %lf\n\n' % j1)
+    file1.write('Avg cycle time: %lf\n\n\n' % j1)
+    mean_system_time[run] = 0
+    file1.write('Number\tObservation\tRunning Average\tScan type\n')
 
-    file1.write('Utilization level\n')  # Print stat utilization lvl's
+    for i1 in range(1, N + 1):
+        mean_system_time[run] += time_system[run][i1]
+        j1 = mean_system_time[run] / (i1 + 1)
+        file1.write('%d\t' % i1 + '%lf\t' % time_system[run][i1] + '%lf\t' % j1 + '%d\n' % scan_type[i1])
+    file1.write('\n\n\n')
+
+    file1.write('Utilization level run {}:\n\n'.format(run))  # Print stat utilization lvl's
     for i1 in range(0, nr_stations):
         file1.write('Utilisation servers Station WS %d:\t' % i1)
         for i2 in range(0, nr_servers[i1]):
