@@ -2,6 +2,7 @@ import numpy as np
 import math
 from collections import defaultdict
 from random import random
+import matplotlib.pyplot as plt
 
 
 def Exponential_distribution(lambdaValue):
@@ -112,8 +113,13 @@ def initialize_functions():  # Put all variables to zero
 
 def init():  # Initialisation function
 
+    # list to store moving avg cycle time
+    global moving_avg_cycle, index_cust
+    moving_avg_cycle = []
+    index_cust = []
+
     ### SET INPUT VALUES ###
-    np.random.seed(0)  # ((i3+1)*run-run)
+    np.random.seed((K + 1) * run - run)  # ((i3+1)*run-run)
     # Ensure you each time use a different seed to get IID replications
 
     ### INPUT RADIOLOGY DPT ###
@@ -123,10 +129,10 @@ def init():  # Initialisation function
     global nr_servers
     nr_servers = {}  # Input number of servers per workstation
     nr_servers[0] = 3
-    nr_servers[1] = 2
+    nr_servers[1] = 2 + 0
     nr_servers[2] = 4
     nr_servers[3] = 3
-    nr_servers[4] = 1
+    nr_servers[4] = 1 + 1
 
     ### INPUT JOB TYPES ###
     global nr_job_types, nr_workstations_job
@@ -333,11 +339,14 @@ def init():  # Initialisation function
     mean_system_time = {}
 
     ### OTHER PARAMETERS ###
-    global infinity, idle, rho_ws_s, rho_ws, rho
+    global infinity, idle, rho_ws_s, rho_ws, rho, rho_run, cycle_time_run
     rho = 0
     idle = defaultdict(lambda: defaultdict(dict))
     rho_ws_s = defaultdict(dict)
     rho_ws = {}
+
+    rho_run = {}
+    cycle_time_run = {}
 
     ### VARIABLES RELATED TO CLOCK TIME ###
     global elapsed_time, time_subproblem, start_time, inter_time, project_start_time
@@ -490,20 +499,23 @@ def radiology_system():
 
 
 def output():
-    global rho_ws, rho, t, mean_system_time
+    global rho_ws, rho, t, mean_system_time, moving_avg_cycle, index_cust
     file1 = open("Output_Radiology_run{}.txt".format(run), "w")
     for i1 in range(1, N + 1):  # PRINT system time = cycle time (observations and running average)
         mean_system_time[run] += time_system[run][i1]
     file1.write('Cycle time run {}:\n\n'.format(run))
     j1 = mean_system_time[run] / N
     file1.write('Avg cycle time: %lf\n\n\n' % j1)
-    mean_system_time[run] = 0
-    file1.write('Number\tObservation\tRunning Average\tScan type\n')
 
+    # code to see moving avg of cycle time
+    mean_system_time[run] = 0
+    # file1.write('Number\tObservation\tRunning Average\tScan type\n')
     for i1 in range(1, N + 1):
         mean_system_time[run] += time_system[run][i1]
         j1 = mean_system_time[run] / (i1 + 1)
-        file1.write('%d\t' % i1 + '%lf\t' % time_system[run][i1] + '%lf\t' % j1 + '%d\n' % scan_type[i1])
+        moving_avg_cycle.append(j1)
+        index_cust.append(i1)
+    # file1.write('%d\t' % i1 + '%lf\t' % time_system[run][i1] + '%lf\t' % j1 + '%d\n' % scan_type[i1])
     file1.write('\n\n\n')
 
     file1.write('Utilization level run {}:\n\n'.format(run))  # Print stat utilization lvl's
@@ -524,17 +536,20 @@ def output():
     for i1 in range(0, nr_stations):
         rho += rho_ws[i1]
     rho /= nr_stations
-    file1.write('Overall avg utilisation: %lf\n' % rho)
+    file1.write('Overall avg utilisation (rho): %lf\n' % rho)
     file1.write('\n\n\n')
 
-    function_objective = mean_system_time[run]/N/60 - 10 * rho
+    function_objective = mean_system_time[run] / N / 60 - 10 * rho
 
-    file1.write('Objective function of run {}: '.format(function_objective))
+    file1.write('Objective function: {}'.format(function_objective))
+
 
 L = 1
 for i3 in range(0, L):
-    K = 5
+    K = 1
     for run in range(0, K):
         init()
         radiology_system()
         output()
+        plt.plot(index_cust, moving_avg_cycle)
+        plt.show()
