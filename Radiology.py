@@ -134,11 +134,11 @@ def init():  # Initialisation function
 
     global nr_servers
     nr_servers = {}  # Input number of servers per workstation
-    nr_servers[0] = 3
-    nr_servers[1] = 2 + 0   # experiment with nr of servers
-    nr_servers[2] = 4
-    nr_servers[3] = 3
-    nr_servers[4] = 1 + 0   # experiment with nr of servers
+    nr_servers[0] = 3 + 0
+    nr_servers[1] = 2 + 100   # experiment with nr of servers
+    nr_servers[2] = 4 + 0
+    nr_servers[3] = 3 + 0
+    nr_servers[4] = 1 + 100   # experiment with nr of servers
 
     ### INPUT JOB TYPES ###
     global nr_job_types, nr_workstations_job
@@ -504,7 +504,7 @@ def radiology_system():
 
 
 def output():
-    global rho_ws, rho, t, mean_system_time, index_cust, moving_avg_cycle_run, rho_run
+    global rho_ws, rho_ws_s, rho, t, mean_system_time, index_cust, moving_avg_cycle_run, rho_run
     file1 = open("Output_Radiology_run{}.txt".format(run), "w")
     for i1 in range(1, N + 1):  # PRINT system time = cycle time (observations and running average)
         mean_system_time[run] += time_system[run][i1]
@@ -527,6 +527,8 @@ def output():
     for i1 in range(0, nr_stations):
         file1.write('Utilisation servers Station WS %d:\t' % i1)
         for i2 in range(0, nr_servers[i1]):
+            if rho_ws_s[i1][i2] == 0:
+                rho_ws_s[i1][i2] = t
             file1.write('%lf\t' % (1 - rho_ws_s[i1][i2] / t))
         file1.write('\n')
     file1.write('\n')
