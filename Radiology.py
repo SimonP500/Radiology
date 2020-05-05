@@ -504,7 +504,7 @@ def radiology_system():
 
 
 def output():
-    global rho_ws, rho, t, mean_system_time, index_cust, moving_avg_cycle_run
+    global rho_ws, rho, t, mean_system_time, index_cust, moving_avg_cycle_run, rho_run
     file1 = open("Output_Radiology_run{}.txt".format(run), "w")
     for i1 in range(1, N + 1):  # PRINT system time = cycle time (observations and running average)
         mean_system_time[run] += time_system[run][i1]
@@ -541,18 +541,16 @@ def output():
     for i1 in range(0, nr_stations):
         rho += rho_ws[i1]
     rho /= nr_stations
+    rho_run[run] = rho  # store rho of this run in dict
     file1.write('Overall avg utilisation (rho): %lf\n' % rho)
-    file1.write('\n\n\n')
-
-    function_objective = mean_system_time[run] / N / 60 - 10 * rho
-
-    file1.write('Objective function: {}'.format(function_objective))
 
 
 L = 2
-global moving_avg_cycle_run, moving_avg_cycle_batch_mean
+global moving_avg_cycle_run, moving_avg_cycle_batch_mean, rho_run, rho_batch
 moving_avg_cycle_run = defaultdict(list)  # to store the moving avg of the cycle time per run
 moving_avg_cycle_batch_mean = defaultdict(list)  # to store the mean over all runs of the moving avg
+rho_run = defaultdict()
+rho_batch = defaultdict(list)
 
 for batch in range(0, L):
     K = 5
@@ -564,6 +562,8 @@ for batch in range(0, L):
         radiology_system()
         output()
         moving_avg_cycle_batch.append(moving_avg_cycle_run[run])  # list of all moving avg lists of all runs
+    for v in rho_run.values():
+        rho_batch[batch].append(v)  # add rho of all runs for this batch in list
     label = ''
     if batch == 0:  # no complement random numbers
         label = 'No antithetic'
@@ -573,8 +573,14 @@ for batch in range(0, L):
     moving_avg_cycle_batch_mean[batch] = [np.mean(k) for k in zip(*moving_avg_cycle_batch)]  # get the mean of the
     # running avg over all runs for this batch
     plt.plot(index_cust, moving_avg_cycle_batch_mean[batch], label=label)
-combined = [statistics.mean(i) for i in zip(moving_avg_cycle_batch_mean[0], moving_avg_cycle_batch_mean[
+cycle_combined = [statistics.mean(i) for i in zip(moving_avg_cycle_batch_mean[0], moving_avg_cycle_batch_mean[
     1])]  # combine antithetic and normal to reduce variance
-plt.plot(index_cust, combined, label='Combined')
+rhos_list = []
+for v in rho_batch.values():
+    rhos_list.append(v[0])
+rho_combined = statistics.mean(rhos_list)
+obj_val = cycle_combined[999]/60 - 10*rho_combined
+print("The objective value is: {}".format(obj_val))
+plt.plot(index_cust, cycle_combined, label='Combined')
 plt.legend()
 plt.show()
