@@ -1,14 +1,17 @@
-import numpy as np
 import math
 from collections import defaultdict
-from random import random
 import matplotlib.pyplot as plt
+import statistics
+import numpy as np
 
 
 def Exponential_distribution(lambdaValue):
     j1 = np.random.uniform(0, 1)
+
     if (j1 == 0): j1 += 0.0001
     j2 = -math.log(j1) / lambdaValue
+    if batch == 1:
+        j2 = -math.log(1 - j1) / lambdaValue  # take complement of random number for variance reduction
     return j2
 
 
@@ -114,12 +117,15 @@ def initialize_functions():  # Put all variables to zero
 def init():  # Initialisation function
 
     # list to store moving avg cycle time
-    global moving_avg_cycle, index_cust
-    moving_avg_cycle = []
+    global index_cust, moving_avg_all_cycles
     index_cust = []
+    moving_avg_all_cycles = [[]]
+
+    # to store random numbers
+    global interarrival_r
+    interarrival_r = []
 
     ### SET INPUT VALUES ###
-    np.random.seed((K + 1) * run - run)  # ((i3+1)*run-run)
     # Ensure you each time use a different seed to get IID replications
 
     ### INPUT RADIOLOGY DPT ###
@@ -129,10 +135,10 @@ def init():  # Initialisation function
     global nr_servers
     nr_servers = {}  # Input number of servers per workstation
     nr_servers[0] = 3
-    nr_servers[1] = 2 + 0
+    nr_servers[1] = 2 + 0   # experiment with nr of servers
     nr_servers[2] = 4
     nr_servers[3] = 3
-    nr_servers[4] = 1 + 1
+    nr_servers[4] = 1 + 0   # experiment with nr of servers
 
     ### INPUT JOB TYPES ###
     global nr_job_types, nr_workstations_job
@@ -371,7 +377,7 @@ def init():  # Initialisation function
 # method to determine job type of arrival
 def det_job_type(source):
     job_type = -1
-    rand = random()
+    rand = np.random.uniform(0, 1)
     if rand <= cum_distr_scans[source][0]:
         job_type = 0
     elif cum_distr_scans[source][0] < rand <= cum_distr_scans[source][1]:
@@ -397,7 +403,6 @@ def get_ws_server(dict, time_departure):
 # method to get first available server at a particular ws
 def get_idles(mydict, current_time):
     idles = [k for k, v in mydict.items() if v <= current_time]
-    test = 0
     return idles[0]
 
 
@@ -487,7 +492,7 @@ def radiology_system():
         else:
             next_source = 1
         next_event = min(first_arrival, first_departure)
-        t = next_event
+        t = next_event  # advance time to next event
         if next_event == first_arrival:  # arrival event
             arrival_event(next_source)
         else:  # departure event
@@ -499,7 +504,7 @@ def radiology_system():
 
 
 def output():
-    global rho_ws, rho, t, mean_system_time, moving_avg_cycle, index_cust
+    global rho_ws, rho, t, mean_system_time, index_cust, moving_avg_cycle_run
     file1 = open("Output_Radiology_run{}.txt".format(run), "w")
     for i1 in range(1, N + 1):  # PRINT system time = cycle time (observations and running average)
         mean_system_time[run] += time_system[run][i1]
@@ -513,8 +518,8 @@ def output():
     for i1 in range(1, N + 1):
         mean_system_time[run] += time_system[run][i1]
         j1 = mean_system_time[run] / (i1 + 1)
-        moving_avg_cycle.append(j1)
-        index_cust.append(i1)
+        moving_avg_cycle_run[run].append(j1)  # store in the moving avg list of this run
+        index_cust.append(i1)  # to plot index of customer
     # file1.write('%d\t' % i1 + '%lf\t' % time_system[run][i1] + '%lf\t' % j1 + '%d\n' % scan_type[i1])
     file1.write('\n\n\n')
 
@@ -544,12 +549,32 @@ def output():
     file1.write('Objective function: {}'.format(function_objective))
 
 
-L = 1
-for i3 in range(0, L):
-    K = 1
+L = 2
+global moving_avg_cycle_run, moving_avg_cycle_batch_mean
+moving_avg_cycle_run = defaultdict(list)  # to store the moving avg of the cycle time per run
+moving_avg_cycle_batch_mean = defaultdict(list)  # to store the mean over all runs of the moving avg
+
+for batch in range(0, L):
+    K = 5
+    global moving_avg_cycle_batch
+    moving_avg_cycle_batch = []
     for run in range(0, K):
+        np.random.seed((batch + 8) * K - run)  # set different random seed for every run
         init()
         radiology_system()
         output()
-        plt.plot(index_cust, moving_avg_cycle)
-        plt.show()
+        moving_avg_cycle_batch.append(moving_avg_cycle_run[run])  # list of all moving avg lists of all runs
+    label = ''
+    if batch == 0:  # no complement random numbers
+        label = 'No antithetic'
+    else:
+        label = 'Antithetic'  # with complement random numbers
+    moving_avg_cycle_run.clear()  # clear list for next batch iteration
+    moving_avg_cycle_batch_mean[batch] = [np.mean(k) for k in zip(*moving_avg_cycle_batch)]  # get the mean of the
+    # running avg over all runs for this batch
+    plt.plot(index_cust, moving_avg_cycle_batch_mean[batch], label=label)
+combined = [statistics.mean(i) for i in zip(moving_avg_cycle_batch_mean[0], moving_avg_cycle_batch_mean[
+    1])]  # combine antithetic and normal to reduce variance
+plt.plot(index_cust, combined, label='Combined')
+plt.legend()
+plt.show()
