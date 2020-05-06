@@ -4,6 +4,9 @@ import matplotlib.pyplot as plt
 import statistics
 import numpy as np
 
+# TODO: objective function per run (avg of normal and antithetic)
+# TODO: running avg of objective function over 10 runs
+
 
 def Exponential_distribution(lambdaValue):
     j1 = np.random.uniform(0, 1)
@@ -12,7 +15,7 @@ def Exponential_distribution(lambdaValue):
     j2 = -math.log(j1) / lambdaValue
     if batch == 1:
         j2 = -math.log(1 - j1) / lambdaValue  # take complement of random number for variance reduction
-    return j2
+    return j2*60
 
 
 def Normal_distribution(mean, stdev):
@@ -20,8 +23,14 @@ def Normal_distribution(mean, stdev):
 
     t1 = 0
     while (t1 >= 1 or t1 == 0):
-        r1 = np.random.uniform(0, 1) * 2 - 1  # randomNumber 1
-        r2 = np.random.uniform(0, 1) * 2 - 1
+        random_nr1 = np.random.uniform(0, 1)
+        r1 = random_nr1 * 2 - 1  # randomNumber 1
+        if batch == 1:
+            r1 = (1 - random_nr1) * 2 - 1    # variance reduction
+        random_nr2 = np.random.uniform(0, 1)
+        r2 = random_nr2 * 2 - 1
+        if batch == 1:
+            r2 = (1 - random_nr2) * 2 - 1
         t1 = r1 * r1 + r2 * r2
 
     multiplier = math.sqrt(-2 * math.log(t1) / t1)
@@ -116,15 +125,6 @@ def initialize_functions():  # Put all variables to zero
 
 def init():  # Initialisation function
 
-    # list to store moving avg cycle time
-    global index_cust, moving_avg_all_cycles
-    index_cust = []
-    moving_avg_all_cycles = [[]]
-
-    # to store random numbers
-    global interarrival_r
-    interarrival_r = []
-
     ### SET INPUT VALUES ###
     # Ensure you each time use a different seed to get IID replications
 
@@ -135,10 +135,10 @@ def init():  # Initialisation function
     global nr_servers
     nr_servers = {}  # Input number of servers per workstation
     nr_servers[0] = 3 + 0
-    nr_servers[1] = 2 + 100   # experiment with nr of servers
+    nr_servers[1] = 2 + 0   # experiment with nr of servers
     nr_servers[2] = 4 + 0
     nr_servers[3] = 3 + 0
-    nr_servers[4] = 1 + 100   # experiment with nr of servers
+    nr_servers[4] = 1 + 1   # experiment with nr of servers
 
     ### INPUT JOB TYPES ###
     global nr_job_types, nr_workstations_job
@@ -185,7 +185,7 @@ def init():  # Initialisation function
     global first_ta  # First arrival time over all sources
     first_ta = 0
     global index_arr  # Source of next arrival
-    index_arr = 0
+    index_arr = {}
     tot_lambda = defaultdict(dict)
     scan_type = {}  # Type of scan arriving
     time_arrival = defaultdict(dict)  # Time of arrival of the scan to the ancillary services
@@ -345,14 +345,14 @@ def init():  # Initialisation function
     mean_system_time = {}
 
     ### OTHER PARAMETERS ###
-    global infinity, idle, rho_ws_s, rho_ws, rho, rho_run, cycle_time_run
+    global infinity, idle, rho_ws_s, rho_ws, rho
     rho = 0
     idle = defaultdict(lambda: defaultdict(dict))
     rho_ws_s = defaultdict(dict)
     rho_ws = {}
 
-    rho_run = {}
-    cycle_time_run = {}
+
+
 
     ### VARIABLES RELATED TO CLOCK TIME ###
     global elapsed_time, time_subproblem, start_time, inter_time, project_start_time
@@ -407,8 +407,9 @@ def get_idles(mydict, current_time):
 
 
 def arrival_event(source):
-    global n_a, n, scan_type, current_station, list_scan, n_ws, n_a_ws, t_d, t_a, t, t_lambda, current_cust, rho_ws_s
+    global n_a, n, scan_type, current_station, list_scan, n_ws, n_a_ws, t_d, t_a, t, t_lambda, current_cust, rho_ws_s, index_arr
     n_a += 1  # increment nr of arrivals in system (also serves as a customer ID)
+    index_arr[n_a] = source
     job_type = det_job_type(source)  # determine type of job
     scan_type[n_a] = job_type  # store type of scan
     current_station[n_a] = 0  # update current ws (sequence nr)
@@ -429,7 +430,7 @@ def arrival_event(source):
         current_cust[ws][first_available_server] = n_a  # update current_cust variable
     n_ws[ws] += 1  # increment nr of scans at ws currently
     # generate next arrival
-    t_lambda = Exponential_distribution(lamb[source]) * 60  # generate interarrival time of next customer in system
+    t_lambda = Exponential_distribution(lamb[source])  # generate interarrival time of next customer in system
     t_a[source] = t + t_lambda  # store time of next arrival for source
 
 
@@ -503,86 +504,55 @@ def radiology_system():
                 not_departed.append(i1)  # to check if first N scans have departed
 
 
-def output():
-    global rho_ws, rho_ws_s, rho, t, mean_system_time, index_cust, moving_avg_cycle_run, rho_run
-    file1 = open("Output_Radiology_run{}.txt".format(run), "w")
-    for i1 in range(1, N + 1):  # PRINT system time = cycle time (observations and running average)
-        mean_system_time[run] += time_system[run][i1]
-    file1.write('Cycle time run {}:\n\n'.format(run))
-    j1 = mean_system_time[run] / N
-    file1.write('Avg cycle time: %lf\n\n\n' % j1)
-
-    # code to see moving avg of cycle time
-    mean_system_time[run] = 0
-    # file1.write('Number\tObservation\tRunning Average\tScan type\n')
-    for i1 in range(1, N + 1):
-        mean_system_time[run] += time_system[run][i1]
-        j1 = mean_system_time[run] / (i1 + 1)
-        moving_avg_cycle_run[run].append(j1)  # store in the moving avg list of this run
-        index_cust.append(i1)  # to plot index of customer
-    # file1.write('%d\t' % i1 + '%lf\t' % time_system[run][i1] + '%lf\t' % j1 + '%d\n' % scan_type[i1])
-    file1.write('\n\n\n')
-
-    file1.write('Utilization level run {}:\n\n'.format(run))  # Print stat utilization lvl's
-    for i1 in range(0, nr_stations):
-        file1.write('Utilisation servers Station WS %d:\t' % i1)
-        for i2 in range(0, nr_servers[i1]):
-            if rho_ws_s[i1][i2] == 0:
-                rho_ws_s[i1][i2] = t
-            file1.write('%lf\t' % (1 - rho_ws_s[i1][i2] / t))
-        file1.write('\n')
-    file1.write('\n')
-    for i1 in range(0, nr_stations):
-        file1.write('Avg utilisation Station WS %d:\t' % i1)
-        for i2 in range(0, nr_servers[i1]):
-            rho_ws[i1] += (1 - rho_ws_s[i1][i2] / t)
-        rho_ws[i1] = rho_ws[i1] / nr_servers[i1]
-        file1.write('%lf\n' % rho_ws[i1])
-    file1.write('\n')
-
-    for i1 in range(0, nr_stations):
-        rho += rho_ws[i1]
-    rho /= nr_stations
-    rho_run[run] = rho  # store rho of this run in dict
-    file1.write('Overall avg utilisation (rho): %lf\n' % rho)
-
 
 L = 2
-global moving_avg_cycle_run, moving_avg_cycle_batch_mean, rho_run, rho_batch
-moving_avg_cycle_run = defaultdict(list)  # to store the moving avg of the cycle time per run
-moving_avg_cycle_batch_mean = defaultdict(list)  # to store the mean over all runs of the moving avg
-rho_run = defaultdict()
-rho_batch = defaultdict(list)
-
+global rhos_0,  rhos_1, cycle_0, cycle_1
+rhos_0 = []
+rhos_1 = []
+cycle_0 = []
+cycle_1 = []
 for batch in range(0, L):
     K = 5
-    global moving_avg_cycle_batch
-    moving_avg_cycle_batch = []
     for run in range(0, K):
-        np.random.seed((batch + 8) * K - run)  # set different random seed for every run
+        global rho_ws, rho
+        seed = (run + 8) * K - run
+        np.random.seed(seed)  # set different random seed for every run
         init()
         radiology_system()
-        output()
-        moving_avg_cycle_batch.append(moving_avg_cycle_run[run])  # list of all moving avg lists of all runs
-    for v in rho_run.values():
-        rho_batch[batch].append(v)  # add rho of all runs for this batch in list
-    label = ''
-    if batch == 0:  # no complement random numbers
-        label = 'No antithetic'
-    else:
-        label = 'Antithetic'  # with complement random numbers
-    moving_avg_cycle_run.clear()  # clear list for next batch iteration
-    moving_avg_cycle_batch_mean[batch] = [np.mean(k) for k in zip(*moving_avg_cycle_batch)]  # get the mean of the
-    # running avg over all runs for this batch
-    plt.plot(index_cust, moving_avg_cycle_batch_mean[batch], label=label)
-cycle_combined = [statistics.mean(i) for i in zip(moving_avg_cycle_batch_mean[0], moving_avg_cycle_batch_mean[
-    1])]  # combine antithetic and normal to reduce variance
-rhos_list = []
-for v in rho_batch.values():
-    rhos_list.append(v[0])
-rho_combined = statistics.mean(rhos_list)
-obj_val = cycle_combined[999]/60 - 10*rho_combined
-print("The objective value is: {}".format(obj_val))
-plt.plot(index_cust, cycle_combined, label='Combined')
-plt.legend()
-plt.show()
+        # get rho of this run for all stations
+        for i1 in range(0, nr_stations):
+            for i2 in range(0, nr_servers[i1]):
+                rho_ws[i1] += (1 - rho_ws_s[i1][i2] / t) / nr_servers[i1]
+        # get rho of this run
+        for i1 in range(0, nr_stations):
+            rho += rho_ws[i1] / nr_stations
+        if batch == 0:
+            rhos_0.append(rho)
+        else:
+            rhos_1.append(rho)
+        test = 0
+        # get avg cycle time of this run
+        cycle_times = []
+        for i1 in range(1, N + 1):
+            cycle_times.append(time_system[run][i1])
+        cycle_avg = statistics.mean(cycle_times)
+        if batch == 0:
+            cycle_0.append(cycle_avg)
+        else:
+            cycle_1.append(cycle_avg)
+rhos_combined = [statistics.mean(k) for k in zip(rhos_0, rhos_1)]
+cycle_combined = [statistics.mean(k) for k in zip(cycle_0, cycle_1)]
+obj_function = []
+for i1 in range(0, K):
+    obj_function.append(cycle_combined[i1] - 10*rhos_combined[i1])
+file1 = open("Output_Radiology.txt", "w")
+file1.write("Run\t\tObjective function\n")
+for i1 in range(0, K):
+    file1.write("{}\t\t{}\n".format(i1, obj_function[i1]))
+
+
+
+
+
+
+
