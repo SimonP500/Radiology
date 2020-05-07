@@ -159,10 +159,10 @@ def init():  # Initialisation function
     global nr_servers
     nr_servers = {}  # Input number of servers per workstation
     nr_servers[0] = 3 + 0
-    nr_servers[1] = 2 + 1   # experiment with nr of servers
+    nr_servers[1] = 2 + 100   # experiment with nr of servers
     nr_servers[2] = 4 + 0
-    nr_servers[3] = 3 + 0
-    nr_servers[4] = 1 + 1   # experiment with nr of servers
+    nr_servers[3] = 3 + 100
+    nr_servers[4] = 1 + 100   # experiment with nr of servers
 
     ### INPUT JOB TYPES ###
     global nr_job_types, nr_workstations_job
@@ -541,7 +541,7 @@ def radiology_system():
 
 
 
-L = 50
+L = 10
 service_times = []
 interarrival_times = []
 rhos = []
@@ -553,12 +553,16 @@ for batch in range(0, L):
     K = 1
     performance_measure = []
     for run in range(0, K):
-        global rho_ws, rho
+        global rho_ws, rho, rho_ws_s
         seed = (batch + 31) * K - run
         np.random.seed(seed)  # set different random seed for every run
         init()
         radiology_system()
         # get rho of this run for all stations
+        for i1 in range(0, nr_stations):
+            for i2 in range(0, nr_servers[i1]):
+                if rho_ws_s[i1][i2] == 0:
+                    rho_ws_s[i1][i2] = t
         for i1 in range(0, nr_stations):
             for i2 in range(0, nr_servers[i1]):
                 rho_ws[i1] += (1 - rho_ws_s[i1][i2] / t) / nr_servers[i1]
@@ -575,12 +579,32 @@ for batch in range(0, L):
             running_avg_cycle.append(statistics.mean(cycle_times[:i1]))
         cycle_avg = statistics.mean(cycle_times)
         cycle.append(cycle_avg)
-        performance_measure.append(cycle_avg - 10*rho)
+        obj_function_run = cycle_avg - 10*rho
+        performance_measure.append(obj_function_run)
+        # get running average of objective function for this run
+        running_avg_obj = []
+        for i1 in range(0, N):
+            running_avg_obj.append(running_avg_cycle[i1] - 10*running_avg_rho[i1])
+        # plot running avg of objective function
+        limit_lower = obj_function_run*0.975
+        limit_upper = obj_function_run*1.025
+        #plt.plot(running_avg_obj)  # for later
+        #plt.hlines(limit_upper, 1, N+1)
+        #plt.hlines(limit_lower, 1, N+1)
+        #plt.title("Run {}".format(batch))
+        #plt.show()
     #avg performance measure over runs
     performance_measure_batch.append(statistics.mean(performance_measure))
 performance_measure_final = statistics.mean(performance_measure_batch)
 print("The performance measure of this design is: {}".format(performance_measure_final))
-print("Variance of system is: {}".format(statistics.stdev(performance_measure_batch)))
+print("Standard deviation of system is: {}".format(statistics.stdev(performance_measure_batch)))
+file1 = open("Output_Radiology.txt", "w")
+file1.write("Performance measure of this design: {}\n\n\n".format(performance_measure_final))
+file1.write("Performance measure per simulation:\n\n")
+file1.write("Replication\t\tPerformance measure\n")
+for i1 in range(0, L):
+    file1.write("{}\t\t\t\t".format(i1))
+    file1.write("{}\n".format(performance_measure_batch[i1]))
 
 
 
