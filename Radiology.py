@@ -5,36 +5,50 @@ import statistics
 import numpy as np
 
 # TODO: objective function per run (avg of normal and antithetic)
-# TODO: running avg of objective function over 10 runs
+# TODO: running average cycle times
 
 
 def Exponential_distribution(lambdaValue):
+    global interarrival_times, j1_c
     j1 = np.random.uniform(0, 1)
-
+    if (n_a % 2) == 0:
+        j1_c = 1 - j1
+    if (n_a % 2) == 1:
+        j1 = j1_c
     if (j1 == 0): j1 += 0.0001
     j2 = -math.log(j1) / lambdaValue
-    if batch == 1:
-        j2 = -math.log(1 - j1) / lambdaValue  # take complement of random number for variance reduction
-    return j2*60
+    interarrival_times.append(j2)
+    return j2
 
 
-def Normal_distribution(mean, stdev):
+def Normal_distribution(mean, stdev, station, ID):
     # TO MODEL BASED ON CUMULATIVE DENSITY FUNCTION OF NORMAL DISTRIBUTION BASED ON BOOK OF SHELDON ROSS, Simulation, The polar method, p80.
-
+    global service_times, counter, complement_random_nr1, complement_random_nr2
     t1 = 0
-    while (t1 >= 1 or t1 == 0):
-        random_nr1 = np.random.uniform(0, 1)
+    if (station % 2) == 0:
+        while (t1 >= 1 or t1 == 0):
+            random_nr1 = np.random.uniform(0, 1)
+            r1 = random_nr1 * 2 - 1  # randomNumber 1
+            random_nr2 = np.random.uniform(0, 1)
+            r2 = random_nr2 * 2 - 1
+            t1 = r1 * r1 + r2 * r2
+    if (station % 2) == 0:
+        complement_random_nr1[ID] = 1 - random_nr1
+        complement_random_nr2[ID] = 1 - random_nr2
+    if (station % 2) == 1:
+        random_nr1 = complement_random_nr1[ID]
         r1 = random_nr1 * 2 - 1  # randomNumber 1
-        if batch == 1:
-            r1 = (1 - random_nr1) * 2 - 1    # variance reduction
-        random_nr2 = np.random.uniform(0, 1)
+        random_nr2 = complement_random_nr2[ID]
         r2 = random_nr2 * 2 - 1
-        if batch == 1:
-            r2 = (1 - random_nr2) * 2 - 1
         t1 = r1 * r1 + r2 * r2
 
     multiplier = math.sqrt(-2 * math.log(t1) / t1)
     x = r1 * multiplier * stdev + mean
+    service_times.append(x)
+    if (station % 2) == 0:
+        service_times_normal.append(x)
+    else:
+        service_times_anti.append(x)
     return x
 
 
@@ -122,11 +136,21 @@ def initialize_functions():  # Put all variables to zero
         for i1 in range(0, nr_servers[i3]):
             rho_ws_s[i3][i1] = 0
 
+    for i4 in range(0, max_C):
+        complement_random_nr1[i4] = 0
+        complement_random_nr2[i4] = 0
+
+
 
 def init():  # Initialisation function
 
+    global counter, j1_c, complement_random_nr1, complement_random_nr2
+    counter = 0
+    j1_c = 0
+    complement_random_nr1 = {}
+    complement_random_nr2 = {}
+
     ### SET INPUT VALUES ###
-    # Ensure you each time use a different seed to get IID replications
 
     ### INPUT RADIOLOGY DPT ###
     global nr_stations
@@ -135,7 +159,7 @@ def init():  # Initialisation function
     global nr_servers
     nr_servers = {}  # Input number of servers per workstation
     nr_servers[0] = 3 + 0
-    nr_servers[1] = 2 + 0   # experiment with nr of servers
+    nr_servers[1] = 2 + 1   # experiment with nr of servers
     nr_servers[2] = 4 + 0
     nr_servers[3] = 3 + 0
     nr_servers[4] = 1 + 1   # experiment with nr of servers
@@ -196,7 +220,7 @@ def init():  # Initialisation function
     # Arrival from radiology department
     global lamb, cum_distr_scans
     lamb = {}  # Arrival rate
-    lamb[0] = 1 / 0.25  # Input arrival rate = 1/mean interarrival time
+    lamb[0] = 1 / 0.25 / 60  # Input arrival rate = 1/mean interarrival time -> converted to minutes
     cum_distr_scans = defaultdict(dict)  # Cumulative(!) distribution of job types per source
     cum_distr_scans[0][0] = 0.2  # SOURCE = 1
     cum_distr_scans[0][1] = 0.4
@@ -204,7 +228,7 @@ def init():  # Initialisation function
     cum_distr_scans[0][3] = 1
 
     # Arrival from other services
-    lamb[1] = 1 / 1  # Input arrival rate = 1/mean interarrival time
+    lamb[1] = 1 / 1 / 60  # Input arrival rate = 1/mean interarrival time -> converted to minutes
     cum_distr_scans[1][0] = 0  # SOURCE = 2
     cum_distr_scans[1][1] = 0.4
     cum_distr_scans[1][2] = 0.4
@@ -345,13 +369,12 @@ def init():  # Initialisation function
     mean_system_time = {}
 
     ### OTHER PARAMETERS ###
-    global infinity, idle, rho_ws_s, rho_ws, rho
+    global infinity, idle, rho_ws_s, rho_ws, rho, running_avg_rho
     rho = 0
     idle = defaultdict(lambda: defaultdict(dict))
     rho_ws_s = defaultdict(dict)
     rho_ws = {}
-
-
+    running_avg_rho = []
 
 
     ### VARIABLES RELATED TO CLOCK TIME ###
@@ -421,7 +444,7 @@ def arrival_event(source):
     n += 1  # update nr of scans in system currently
     n_a_ws[ws] += 1  # increment nr of arrivals ws
     if n_ws[ws] < nr_servers[ws]:  # there are servers available
-        service_time = Normal_distribution(mu[ws][job_type], var[ws][job_type])  # generate service time
+        service_time = Normal_distribution(mu[ws][job_type], var[ws][job_type], station=0, ID=n_a)  # generate service time
         first_available_server = get_idles(idle[run][ws], t)  # assign to first available server (not idle)
         t_d[ws][first_available_server] = t + service_time  # store departure time of scan at particular station and
         # server
@@ -435,7 +458,7 @@ def arrival_event(source):
 
 
 def departure_event(cust_ID):
-    global n_ws, n_d_ws, n_d, current_station, t_d, n_a_ws, t, current_cust, order_out, rho_ws_s
+    global n_ws, n_d_ws, n_d, current_station, t_d, n_a_ws, t, current_cust, order_out, rho_ws_s, running_avg_rho
     job_type_dep = scan_type[cust_ID]  # get scan type of departing cust
     current_ws = route[job_type_dep][current_station[cust_ID]]  # get ws customer is departing from
     n_ws[current_ws] -= 1  # update nr of scans at ws
@@ -444,7 +467,7 @@ def departure_event(cust_ID):
         next_customer = list_scan[current_ws].pop(0)  # treat next scan in queue
         job_type_arr = scan_type[next_customer]  # get type of that scan
         service_time = Normal_distribution(mu[current_ws][job_type_arr],
-                                           var[current_ws][job_type_arr])  # generate service time
+                                           var[current_ws][job_type_arr], station=current_station[next_customer], ID=next_customer)  # generate service time
         first_available_server = get_idles(idle[run][current_ws],
                                            t)  # assign to first available server (not idle)
         t_d[current_ws][first_available_server] = t + service_time  # store departure time
@@ -455,6 +478,19 @@ def departure_event(cust_ID):
         order_out[cust_ID] = t  # store time cust is out of system
         time_system[run][cust_ID] = order_out[cust_ID] - time_arrival[run][cust_ID]  # store time scan has spent
         # in the system
+        # store running avg rho
+        rho_ws_now = {}
+        rho_now = 0
+        for k1 in range(0, nr_stations):
+            rho_ws_now[k1] = 0
+        for k1 in range(0, nr_stations):
+            for k2 in range(0, nr_servers[k1]):
+                rho_ws_now[k1] += (1 - rho_ws_s[k1][k2] / t) / nr_servers[k1]
+        # get rho of this run
+        for k1 in range(0, nr_stations):
+            rho_now += rho_ws_now[k1] / nr_stations
+        if cust_ID <= N:
+            running_avg_rho.append(rho_now)
     else:
         next_ws = route[job_type_dep][current_station[cust_ID] + 1]  # identify next ws (not sequence nr)
         n_a_ws[next_ws] += 1  # increment nr of arrivals ws
@@ -464,7 +500,7 @@ def departure_event(cust_ID):
         # if n_a <= N:  # stop criterion: if number of arrived customers in system < N
         if n_ws[next_ws] < nr_servers[next_ws]:  # servers available
             service_time = Normal_distribution(mu[next_ws][job_type_dep],
-                                               var[next_ws][job_type_dep])  # generate service time
+                                               var[next_ws][job_type_dep], station=current_station[cust_ID], ID=cust_ID)  # generate service time
             first_available_server = get_idles(idle[run][next_ws],
                                                t)  # assign to first available server (not idle)
             rho_ws_s[next_ws][first_available_server] += t - idle[run][next_ws][first_available_server]  # store
@@ -505,17 +541,20 @@ def radiology_system():
 
 
 
-L = 2
-global rhos_0,  rhos_1, cycle_0, cycle_1
-rhos_0 = []
-rhos_1 = []
-cycle_0 = []
-cycle_1 = []
+L = 50
+service_times = []
+interarrival_times = []
+rhos = []
+cycle = []
+service_times_normal = []
+service_times_anti = []
+performance_measure_batch = []
 for batch in range(0, L):
-    K = 5
+    K = 1
+    performance_measure = []
     for run in range(0, K):
         global rho_ws, rho
-        seed = (run + 8) * K - run
+        seed = (batch + 31) * K - run
         np.random.seed(seed)  # set different random seed for every run
         init()
         radiology_system()
@@ -526,29 +565,24 @@ for batch in range(0, L):
         # get rho of this run
         for i1 in range(0, nr_stations):
             rho += rho_ws[i1] / nr_stations
-        if batch == 0:
-            rhos_0.append(rho)
-        else:
-            rhos_1.append(rho)
-        test = 0
+        rhos.append(rho)
         # get avg cycle time of this run
         cycle_times = []
         for i1 in range(1, N + 1):
             cycle_times.append(time_system[run][i1])
+        running_avg_cycle = []
+        for i1 in range(1, N + 1):
+            running_avg_cycle.append(statistics.mean(cycle_times[:i1]))
         cycle_avg = statistics.mean(cycle_times)
-        if batch == 0:
-            cycle_0.append(cycle_avg)
-        else:
-            cycle_1.append(cycle_avg)
-rhos_combined = [statistics.mean(k) for k in zip(rhos_0, rhos_1)]
-cycle_combined = [statistics.mean(k) for k in zip(cycle_0, cycle_1)]
-obj_function = []
-for i1 in range(0, K):
-    obj_function.append(cycle_combined[i1] - 10*rhos_combined[i1])
-file1 = open("Output_Radiology.txt", "w")
-file1.write("Run\t\tObjective function\n")
-for i1 in range(0, K):
-    file1.write("{}\t\t{}\n".format(i1, obj_function[i1]))
+        cycle.append(cycle_avg)
+        performance_measure.append(cycle_avg - 10*rho)
+    #avg performance measure over runs
+    performance_measure_batch.append(statistics.mean(performance_measure))
+performance_measure_final = statistics.mean(performance_measure_batch)
+print("The performance measure of this design is: {}".format(performance_measure_final))
+print("Variance of system is: {}".format(statistics.stdev(performance_measure_batch)))
+
+
 
 
 
