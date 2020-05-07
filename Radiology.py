@@ -5,7 +5,8 @@ import statistics
 import numpy as np
 
 # TODO: objective function per run (avg of normal and antithetic)
-# TODO: running avg of objective function over 10 runs
+# TODO: antithetic interarrival times
+# TODO: antithetic service times
 
 
 def Exponential_distribution(lambdaValue):
