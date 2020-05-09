@@ -45,6 +45,8 @@ def Normal_distribution(mean, stdev, station, ID):
     multiplier = math.sqrt(-2 * math.log(t1) / t1)
     x = r1 * multiplier * stdev + mean
     service_times.append(x)
+    if x <= 0:
+        x = 0.00001
     if (station % 2) == 0:
         service_times_normal.append(x)
     else:
@@ -158,11 +160,11 @@ def init():  # Initialisation function
 
     global nr_servers
     nr_servers = {}  # Input number of servers per workstation
-    nr_servers[0] = 3 + 0
-    nr_servers[1] = 2 + 100   # experiment with nr of servers
-    nr_servers[2] = 4 + 0
-    nr_servers[3] = 3 + 100
-    nr_servers[4] = 1 + 100   # experiment with nr of servers
+    nr_servers[0] = 3
+    nr_servers[1] = 2    # experiment with nr of servers
+    nr_servers[2] = 4
+    nr_servers[3] = 3
+    nr_servers[4] = 1   # experiment with nr of servers
 
     ### INPUT JOB TYPES ###
     global nr_job_types, nr_workstations_job
@@ -432,6 +434,8 @@ def get_idles(mydict, current_time):
 def arrival_event(source):
     global n_a, n, scan_type, current_station, list_scan, n_ws, n_a_ws, t_d, t_a, t, t_lambda, current_cust, rho_ws_s, index_arr
     n_a += 1  # increment nr of arrivals in system (also serves as a customer ID)
+    if n_a == 341:
+        test = 0
     index_arr[n_a] = source
     job_type = det_job_type(source)  # determine type of job
     scan_type[n_a] = job_type  # store type of scan
@@ -583,16 +587,16 @@ for batch in range(0, L):
         performance_measure.append(obj_function_run)
         # get running average of objective function for this run
         running_avg_obj = []
-        for i1 in range(0, N):
-            running_avg_obj.append(running_avg_cycle[i1] - 10*running_avg_rho[i1])
+#        for i1 in range(0, N):
+#            running_avg_obj.append(running_avg_cycle[i1] - 10*rhos[i1])
         # plot running avg of objective function
-        limit_lower = obj_function_run*0.975
-        limit_upper = obj_function_run*1.025
-        #plt.plot(running_avg_obj)  # for later
-        #plt.hlines(limit_upper, 1, N+1)
-        #plt.hlines(limit_lower, 1, N+1)
-        #plt.title("Run {}".format(batch))
-        #plt.show()
+#        limit_lower = obj_function_run*0.990
+#        limit_upper = obj_function_run*1.010
+#        plt.plot(running_avg_obj)  # for later
+#        plt.hlines(limit_upper, 1, N+1, colors='red')
+#        plt.hlines(limit_lower, 1, N+1, colors='red')
+#        plt.title("Run {}".format(batch))
+#        plt.show()
     #avg performance measure over runs
     performance_measure_batch.append(statistics.mean(performance_measure))
 performance_measure_final = statistics.mean(performance_measure_batch)
