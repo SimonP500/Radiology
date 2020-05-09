@@ -46,7 +46,7 @@ def Normal_distribution(mean, stdev, station, ID):
     x = r1 * multiplier * stdev + mean
     service_times.append(x)
     if x <= 0:
-        x = 0.00001
+        x = 1
     if (station % 2) == 0:
         service_times_normal.append(x)
     else:
